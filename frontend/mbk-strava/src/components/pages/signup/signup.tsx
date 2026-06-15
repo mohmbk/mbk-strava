@@ -1,7 +1,7 @@
 import { useState } from 'react'
 
-import './App.css'
-function App() {
+import './signup.css'
+function Signup() {
  
 
   return (
@@ -11,4 +11,4 @@ function App() {
   )
 }
 
-export default App
+export default Signup
