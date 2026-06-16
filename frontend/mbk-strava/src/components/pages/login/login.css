@@ -1,0 +1,35 @@
+
+.mainlogin{
+    height: 100vh;
+    -webkit-column-width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.login{
+    height: 70% ;
+    width: 30%;
+    background-color: red ;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    align-items: center;
+    margin: auto;
+}
+
+.logininp{
+    height: 15%;
+    border: none;
+    border-radius: 20px;
+    width:90%;
+    padding-left: 10px;
+}
+
+
+.submitbtn{
+    height: 9%;
+    width: 35%;
+    border: none;
+    border-radius: 20px;
+    background-color: aqua;
+}
