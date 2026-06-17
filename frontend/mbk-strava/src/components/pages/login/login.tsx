@@ -12,6 +12,7 @@ function Login() {
     <>
        <section className='mainlogin'>
         <div className='login'>
+          <h1>login</h1>
           <input type="text" placeholder='email' className='logininp' onChange={(e) => setemail(e.target.value)}/>
           <input type="text" placeholder='password' className='logininp' onChange={(e) => setpassword(e.target.value)} />
           <input type="button" value = 'login' className='submitbtn'/>
