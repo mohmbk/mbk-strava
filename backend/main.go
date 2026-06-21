@@ -13,6 +13,13 @@ type StravaUser struct {
 	Password string `json:"password" bson:"password"`
 }
 
+type loginuser struct {
+	Email string `json:"email" bson:"email"`
+	Password string `json:"password" bson:"password"`
+}
+
+var jwtSecret = []byte("ma_cle_secrete")
+
 
 func createStravaUser(w http.ResponseWriter , r *http.Request) {
 	if r.Method != "POST" {
@@ -42,6 +49,54 @@ func createStravaUser(w http.ResponseWriter , r *http.Request) {
 		return ;
 	}
 	fmt.Println("Inserted stravauser with ID: " , result.InsertedID);
+}
+
+
+func login(w http.ResponseWriter , r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(w , "Method not allowed" , http.StatusMethodNotAllowed);
+		return ;
+	}
+	var loginuser loginuser;
+	err := json.NewDecoder(r.Body).Decode(&loginuser);
+	if err != nil {
+		http.Error(w , "Invalid request body" , http.StatusBadRequest);
+		return ;
+	}
+	var stravauser StravaUser;
+	err = stravausercollection.FindOne(context.Background() , bson.M{"email" : loginuser.Email}).Decode(&stravauser);
+	if err != nil {
+		http.Error(w , "StravaUser not found" , http.StatusNotFound);
+		return ;
+	}
+
+	if stravauser.Password != loginuser.Password {
+		http.Error(w , "Invalid password" , http.StatusUnauthorized);
+		return ;
+	}
+	
+
+	claims := jwt.MapClaims{
+		"userId": stravauser.ID,
+		"email": stravauser.Email,
+		"exp": time.Now().Add(time.Hour * 24).Unix(),
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := token.SignedString(jwtSecret)
+	if err != nil {
+		http.Error(w, "Error generating token", http.StatusInternalServerError)
+		return
+	}
+
+	response := loginResponse{
+		Token: tokenString,
+	}
+	w.Header().Set("Content-Type", "application/json");
+	w.WriteHeader(http.StatusOK);
+	json.NewEncoder(w).Encode(response);
+	
+
 }
 
 
