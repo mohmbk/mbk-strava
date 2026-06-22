@@ -5,6 +5,7 @@ import ("fmt" ; "net/http" ; "encoding/json" ; "time" ; "context" ; "go.mongodb.
 
 var client *mongo.Client
 var stravausercollection *mongo.Collection
+var sessioncollection *mongo.Collection
 
 type StravaUser struct {
 	 ID  primitive.ObjectID `bson:"_id,omitempty" json:"id"`
@@ -16,6 +17,13 @@ type StravaUser struct {
 type loginuser struct {
 	Email string `json:"email" bson:"email"`
 	Password string `json:"password" bson:"password"`
+}
+
+type session struct {
+	ID primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	TITLE string `json:"title" bson:"title"`
+	Distance int `json:"distance" bson:"distance"`
+	Time int `json:"time" bson:"time"`
 }
 
 var jwtSecret = []byte("ma_cle_secrete")
@@ -100,6 +108,46 @@ func login(w http.ResponseWriter , r *http.Request) {
 }
 
 
+func getsession(w http.ResponseWriter , r *http.Request) {
+	if r.Method != "GET" {
+		http.Error(w , "Method not allowed" , http.StatusMethodNotAllowed);
+		return ;
+	}
+
+	authHeader := r.Header.Get("Authorization");
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ");
+
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+    	return jwtSecret, nil
+	})
+
+	claims := token.Claims.(jwt.MapClaims);
+	userId := claims["userId"] ;
+
+	cursor, err := sessioncollection.Find(context.Background() , bson.M{"userId" : userId});
+	if err != nil {
+		http.Error(w , "Error fetching sessions" , http.StatusInternalServerError);
+		return ;
+	}
+
+	var sessions []session;
+	for cursor.Next(context.Background()) {
+		var session session
+		err := cursor.Decode(&session);
+		if err != nil {
+			http.Error(w , "Error decoding session" , http.StatusInternalServerError);
+			return ;
+		}
+		sessions = append(sessions , session);
+	}
+
+	w.Header().Set("Content-Type", "application/json");
+	json.NewEncoder(w).Encode(sessions);
+
+	
+}
+
+
 func enableCORS(next http.HandlerFunc) http.HandlerFunc {
     return func(w http.ResponseWriter, r *http.Request) {
         w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -127,9 +175,12 @@ func main() {
 	}
 
 	stravausercollection = client.Database("stravaDB").Collection("stravausercollection");
+	sessioncollection = client.Database("stravaDB").Collection("sessioncollection");
 	
 	
 	http.HandleFunc("/signup" , enableCORS(createStravaUser));
+	http.HandleFunc("/login" , enableCORS(login));
+	http.HandleFunc("/session" , enableCORS(getsession));
 	fmt.Println("Server running on http://localhost:8080");
 	 http.ListenAndServe(":8080", nil);
 
