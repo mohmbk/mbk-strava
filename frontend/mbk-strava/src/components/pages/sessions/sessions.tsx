@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 
 import './sessions.css'
 function Sessions() {
@@ -11,6 +11,9 @@ interface Session {
   }
 
   const [sessions , setsessions] = useState<Session[]>([]) ;
+  const [title , settitle] = useState("");
+  const [distance , setdistance] = useState("");
+  const [time , settime] = useState("") ;
 
   useEffect(() => {
 
@@ -31,6 +34,39 @@ interface Session {
 
     }, []);
 
+    
+    const createactivity = async (e : React.MouseEvent) => {
+      e.preventDefault();
+      try {
+        const token = localStorage.getItem("token");
+        const response = await fetch("http://localhost:8080/sessions" , {
+          method : "POST",
+          headers : {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+
+          body : JSON.stringify({
+            title : title ,
+            distance : Number(distance),
+            time : Number(time),
+          }),
+        });
+
+        if(!response.ok){
+          alert(await response.text()) ;
+          return ;
+        }
+
+        alert("activity created");
+        setdistance("");
+        settime("");
+        settitle("");
+      } catch (error) {
+        console.log(error);
+      }
+    }
+
   return (
     <>
        <div>
@@ -42,6 +78,17 @@ interface Session {
             </div>
         ))}
        </div>
+
+
+       <section className='createsection'>
+          <div className='creatediv'>
+            <h1>create activity</h1>
+            <input type="text" placeholder='tittle' className='sessioninp' onChange={(e) => settitle(e.target.value)} />
+            <input type="text" placeholder='distance' className='sessioninp' onChange={(e) => setdistance(e.target.value)}/>
+            <input type="text" placeholder='time' className='sessioninp' onChange={(e) => settime(e.target.value)}/>
+            <input type="button"  value= 'add activity !' className='sessionbtn' onClick={createactivity} />
+          </div>
+       </section>
     </>
   )
 }

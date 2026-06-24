@@ -38,6 +38,7 @@ const createuser = async ( e: React.MouseEvent) => {
     setpassword("");
   
     alert("user created");
+    window.location.href = "/login";
   } catch (error) {
     console.log(error);
   }

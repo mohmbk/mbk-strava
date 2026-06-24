@@ -1,7 +1,7 @@
 package main 
 import ("fmt" ; "net/http" ; "encoding/json" ; "time" ; "context" ; "go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options" ; "go.mongodb.org/mongo-driver/bson/primitive")
+	"go.mongodb.org/mongo-driver/mongo/options" ; "go.mongodb.org/mongo-driver/bson/primitive" ; "github.com/golang-jwt/jwt" ; "strings" )
 
 var client *mongo.Client
 var stravausercollection *mongo.Collection
@@ -21,9 +21,26 @@ type loginuser struct {
 
 type session struct {
 	ID primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	UserID   primitive.ObjectID `bson:"userId" json:"userId"`
 	TITLE string `json:"title" bson:"title"`
 	Distance int `json:"distance" bson:"distance"`
 	Time int `json:"time" bson:"time"`
+}
+
+type stat struct {
+	TotalDistance int `json:"totalDistance" bson:"totalDistance"`
+	TotalTime int `json:"totalTime" bson:"totalTime"`
+	averagetotalpace float64 `json:"averagePace" bson:"averagePace"`
+}
+
+type loginResponse struct {
+	Token string `json:"token"`
+}
+
+type sessionsent struct {
+	Title string `json:"title"`
+	Distance int `json:"distance"`
+	Time int `json:"time"`
 }
 
 var jwtSecret = []byte("ma_cle_secrete")
@@ -148,6 +165,101 @@ func getsession(w http.ResponseWriter , r *http.Request) {
 }
 
 
+func getstat(w http.ResponseWriter , r *http.Request) {
+	if r.Method != "GET" {
+		http.Error(w , "Method not allowed" , http.StatusMethodNotAllowed);
+		return ;
+	}
+
+	authHeader := r.Header.Get("Authorization");
+	tokenstring := strings.TrimPrefix(authHeader, "Bearer ");
+
+	token, err := jwt.Parse(tokenstring, func(token *jwt.Token) (interface{}, error) {
+		return jwtSecret, nil
+	})
+
+	claims := token.Claims.(jwt.MapClaims);
+	userId := claims["userId"];
+
+	cursor , err := sessioncollection.Find(context.Background() , bson.M{"userId" : userId});
+	if err != nil {
+		http.Error(w , "Error fetching sessions" , http.StatusInternalServerError);
+		return ;
+	}
+
+	var sessions []session;
+	for cursor.Next(context.Background()) {
+		var session session ;
+		err := cursor.Decode(&session);
+		if err != nil {
+			http.Error(w , "Error decoding session" , http.StatusInternalServerError);
+			return ;
+		}
+		sessions = append(sessions , session);
+	}
+
+	var totalDistance int = 0 ;
+	var totalTime int = 0 ;
+	var totalPace float64 = 0.0 ;
+	for _, session := range sessions {
+		totalDistance += session.Distance ;
+		totalTime += session.Time ;
+	}
+
+	totalPace = float64(totalTime) / float64(totalDistance) ;
+
+	stat := stat{
+		TotalDistance: totalDistance,
+		TotalTime: totalTime,
+		averagetotalpace: totalPace,
+	}
+
+	w.Header().Set("Content-Type", "application/json");
+	json.NewEncoder(w).Encode(stat);
+}
+
+
+func createSession(w http.ResponseWriter , r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(w , "Method not allowed" , http.StatusMethodNotAllowed);
+		return ;
+	}
+	var newSession sessionsent;
+	err := json.NewDecoder(r.Body).Decode(&newSession);
+	if err != nil {
+		http.Error(w , "Invalid request body" , http.StatusBadRequest);
+		return ;
+	}
+
+	authHeader := r.Header.Get("Authorization");
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ");
+
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		return jwtSecret, nil
+	})
+
+	claims := token.Claims.(jwt.MapClaims);
+	userId := claims["userId"];
+
+	session := session{
+		UserID: userId.(primitive.ObjectID),
+		TITLE: newSession.Title,
+		Distance: newSession.Distance,
+		Time: newSession.Time,
+	}
+
+	result, err := sessioncollection.InsertOne(context.Background(), session);
+	if err != nil {
+		http.Error(w , "Error inserting session" , http.StatusInternalServerError);
+		return ;
+	}
+
+	fmt.Println("Inserted session with ID: " , result.InsertedID);
+
+
+}
+
+
 func enableCORS(next http.HandlerFunc) http.HandlerFunc {
     return func(w http.ResponseWriter, r *http.Request) {
         w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -177,7 +289,7 @@ func main() {
 	stravausercollection = client.Database("stravaDB").Collection("stravausercollection");
 	sessioncollection = client.Database("stravaDB").Collection("sessioncollection");
 	
-	
+	http.HandleFunc("/stat" , enableCORS(getstat));
 	http.HandleFunc("/signup" , enableCORS(createStravaUser));
 	http.HandleFunc("/login" , enableCORS(login));
 	http.HandleFunc("/session" , enableCORS(getsession));

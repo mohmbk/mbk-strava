@@ -1,0 +1,36 @@
+.createsection{
+    height: 50vh;
+    width: 100%;
+    background-color: red;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+
+.creatediv{
+    height: 100%;
+    width: 50%;
+    background-color: blue;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    align-items: center;
+}
+
+
+.sessioninp{
+    height: 15%;
+    width: 80%;
+    border: none;
+    border-radius: 20px;
+    padding-left: 10px;
+}
+
+.sessionbtn{
+    height: 15%;
+    width: 30%;
+    border: none;
+    background-color: aqua;
+    border-radius: 20px;
+}
